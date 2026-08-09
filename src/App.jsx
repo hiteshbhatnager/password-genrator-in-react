@@ -4,7 +4,7 @@ import Layout from './layout'
 import { Routes, Route } from "react-router-dom";
 
 import { Button, Input, Logo } from './components'
-import { Footer, Home, Login, Navbar, Logout, Signup } from "./pages"
+import { Footer, Home, Login, Navbar, Signup } from "./pages"
 
 function App() {
   const [count, setCount] = useState(0)
@@ -15,7 +15,6 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/logout" element={<Logout />} />
       </Routes>
     </>
   )
