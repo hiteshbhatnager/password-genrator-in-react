@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getPlannerData, savePlannerData } from '../lib/plannerData';
 import { Button, Input } from '../components';
+import { createEvent, getEvents } from '../services/eventService';
 
 function Calendar() {
     const { user } = useAuth();
@@ -10,22 +10,47 @@ function Calendar() {
     const [month, setMonth] = useState(new Date().getMonth());
     const [year, setYear] = useState(new Date().getFullYear());
     const [form, setForm] = useState({ title: '', date: '' });
-    const [events, setEvents] = useState(() => getPlannerData(user?.$id).events);
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(false);
 
-    const saveEvents = (nextEvents) => {
-        setEvents(nextEvents);
-        savePlannerData(user?.$id, 'events', nextEvents);
-    };
+    useEffect(() => {
+        let active = true;
 
-    const handleSubmit = (event) => {
+        const loadEvents = async () => {
+            if (!user) return;
+            setLoading(true);
+            try {
+                const nextEvents = await getEvents();
+                if (active) setEvents(nextEvents);
+            } catch {
+                if (active) setEvents([]);
+            } finally {
+                if (active) setLoading(false);
+            }
+        };
+
+        loadEvents();
+
+        return () => {
+            active = false;
+        };
+    }, [user?.$id]);
+
+    const handleSubmit = async (event) => {
         event.preventDefault();
         if (!form.title.trim() || !form.date) {
             addToast('Please add an event title and date.', 'error');
             return;
         }
-        saveEvents([...events, { id: `${Date.now()}`, title: form.title.trim(), date: form.date }]);
-        setForm({ title: '', date: '' });
-        addToast('Event added.', 'success');
+
+        try {
+            const nextEvent = await createEvent({ title: form.title.trim(), date: form.date });
+            setEvents((current) => [...current, nextEvent]);
+            setForm({ title: '', date: '' });
+            addToast('Event added.', 'success');
+        } catch (error) {
+            addToast(error?.message || 'Unable to save event.', 'error');
+        }
     };
 
     const date = new Date(year, month, 1);
@@ -52,7 +77,7 @@ function Calendar() {
                     <div className="mt-4 space-y-3">
                         <Input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Event title" />
                         <Input type="date" value={form.date} onChange={(event) => setForm((current) => ({ ...current, date: event.target.value }))} />
-                        <Button text="Save event" className="w-full" />
+                        <Button type="submit" text="Save event" className="w-full" />
                     </div>
                 </form>
 
@@ -68,7 +93,7 @@ function Calendar() {
                         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => <div key={day}>{day}</div>)}
                     </div>
                     <div className="mt-2 grid grid-cols-7 gap-2">
-                        {cells.map((cell) => {
+                        {loading ? <div className="col-span-7 rounded-2xl border border-dashed border-[#2d3850] px-4 py-8 text-center text-sm text-[#9ba8c3]">Loading events…</div> : cells.map((cell) => {
                             const isCurrentMonth = cell > 0 && cell <= daysInMonth;
                             const safeDate = new Date(year, month, cell);
                             const key = safeDate.toISOString().slice(0, 10);

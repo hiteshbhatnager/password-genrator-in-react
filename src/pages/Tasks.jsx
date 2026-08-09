@@ -1,43 +1,79 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { getPlannerData, savePlannerData } from '../lib/plannerData';
 import { Button, Input } from '../components';
+import { createTask, deleteTask as deleteTaskService, getTasks, updateTask } from '../services/taskService';
 
 function Tasks() {
     const { user } = useAuth();
     const { addToast } = useToast();
-    const [tasks, setTasks] = useState(() => getPlannerData(user?.$id).tasks);
+    const [tasks, setTasks] = useState([]);
     const [filter, setFilter] = useState('All');
     const [query, setQuery] = useState('');
     const [form, setForm] = useState({ title: '', priority: 'Medium' });
+    const [loading, setLoading] = useState(false);
 
-    const saveTasks = (nextTasks) => {
-        setTasks(nextTasks);
-        savePlannerData(user?.$id, 'tasks', nextTasks);
-    };
+    useEffect(() => {
+        let active = true;
 
-    const handleSubmit = (event) => {
+        const loadTasks = async () => {
+            if (!user) return;
+            setLoading(true);
+            try {
+                const nextTasks = await getTasks();
+                if (active) setTasks(nextTasks);
+            } catch {
+                if (active) setTasks([]);
+            } finally {
+                if (active) setLoading(false);
+            }
+        };
+
+        loadTasks();
+
+        return () => {
+            active = false;
+        };
+    }, [user?.$id]);
+
+    const handleSubmit = async (event) => {
         event.preventDefault();
         if (!form.title.trim()) {
             addToast('Please enter a task title.', 'error');
             return;
         }
-        const nextTask = { id: `${Date.now()}`, title: form.title.trim(), priority: form.priority, completed: false };
-        saveTasks([...tasks, nextTask]);
-        setForm({ title: '', priority: 'Medium' });
-        addToast('Task added.', 'success');
+
+        try {
+            const nextTask = await createTask({ title: form.title.trim(), priority: form.priority, completed: false });
+            setTasks((current) => [...current, nextTask]);
+            setForm({ title: '', priority: 'Medium' });
+            addToast('Task added.', 'success');
+        } catch (error) {
+            addToast(error?.message || 'Unable to save task.', 'error');
+        }
     };
 
-    const toggleTask = (id) => {
-        const nextTasks = tasks.map((task) => (task.id === id ? { ...task, completed: !task.completed } : task));
-        saveTasks(nextTasks);
-        addToast('Task updated.', 'success');
+    const toggleTask = async (id) => {
+        const taskToUpdate = tasks.find((task) => task.$id === id || task.id === id);
+        if (!taskToUpdate) return;
+
+        try {
+            const updatedTask = await updateTask(taskToUpdate.$id || taskToUpdate.id, { completed: !taskToUpdate.completed });
+            setTasks((current) => current.map((task) => (task.$id === id || task.id === id ? { ...task, ...updatedTask } : task)));
+            addToast('Task updated.', 'success');
+        } catch (error) {
+            addToast(error?.message || 'Unable to update task.', 'error');
+        }
     };
 
-    const deleteTask = (id) => {
-        saveTasks(tasks.filter((task) => task.id !== id));
-        addToast('Task removed.', 'success');
+    const deleteTask = async (id) => {
+        try {
+            await deleteTaskService(id);
+            setTasks((current) => current.filter((task) => task.$id !== id && task.id !== id));
+            addToast('Task removed.', 'success');
+        } catch (error) {
+            addToast(error?.message || 'Unable to delete task.', 'error');
+        }
     };
 
     const visibleTasks = useMemo(() => tasks.filter((task) => {
@@ -63,7 +99,7 @@ function Tasks() {
                             <option value="Medium">Medium</option>
                             <option value="Low">Low</option>
                         </select>
-                        <Button text="Save task" className="w-full" />
+                        <Button type="submit" text="Save task" className="w-full" />
                     </div>
                 </form>
 
@@ -80,18 +116,21 @@ function Tasks() {
                     </div>
 
                     <div className="mt-4 space-y-2">
-                        {visibleTasks.length ? visibleTasks.map((task) => (
-                            <div key={task.id} className={`flex flex-col gap-3 rounded-2xl border px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${task.completed ? 'border-[#38c895]/30 bg-[#38c895]/10' : 'border-[#2d3850] bg-[#0f1424]'}`}>
-                                <div className="flex items-center gap-3">
-                                    <input type="checkbox" checked={task.completed} onChange={() => toggleTask(task.id)} className="h-4 w-4 rounded border-[#2d3850] bg-[#171f33]" />
-                                    <div>
-                                        <p className={`text-sm font-medium ${task.completed ? 'text-[#38c895]' : 'text-[#f4f7ff]'}`}>{task.title}</p>
-                                        <p className="text-xs text-[#9ba8c3]">{task.priority} priority</p>
+                        {loading ? <p className="rounded-2xl border border-dashed border-[#2d3850] px-4 py-8 text-center text-sm text-[#9ba8c3]">Loading tasks…</p> : visibleTasks.length ? visibleTasks.map((task) => {
+                            const taskId = task.$id || task.id;
+                            return (
+                                <div key={taskId} className={`flex flex-col gap-3 rounded-2xl border px-3 py-3 sm:flex-row sm:items-center sm:justify-between ${task.completed ? 'border-[#38c895]/30 bg-[#38c895]/10' : 'border-[#2d3850] bg-[#0f1424]'}`}>
+                                    <div className="flex items-center gap-3">
+                                        <input type="checkbox" checked={task.completed} onChange={() => toggleTask(taskId)} className="h-4 w-4 rounded border-[#2d3850] bg-[#171f33]" />
+                                        <div>
+                                            <p className={`text-sm font-medium ${task.completed ? 'text-[#38c895]' : 'text-[#f4f7ff]'}`}>{task.title}</p>
+                                            <p className="text-xs text-[#9ba8c3]">{task.priority} priority</p>
+                                        </div>
                                     </div>
+                                    <button onClick={() => deleteTask(taskId)} className="text-sm text-[#ff6b7a]">Delete</button>
                                 </div>
-                                <button onClick={() => deleteTask(task.id)} className="text-sm text-[#ff6b7a]">Delete</button>
-                            </div>
-                        )) : <p className="rounded-2xl border border-dashed border-[#2d3850] px-4 py-8 text-center text-sm text-[#9ba8c3]">No tasks match this view.</p>}
+                            );
+                        }) : <p className="rounded-2xl border border-dashed border-[#2d3850] px-4 py-8 text-center text-sm text-[#9ba8c3]">No tasks match this view.</p>}
                     </div>
                 </div>
             </div>

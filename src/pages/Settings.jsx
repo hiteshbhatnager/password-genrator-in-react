@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Button, Input } from '../components';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { account } from '../lib/appwrite';
-import { getDefaultSettings, getPlannerData, savePlannerData } from '../lib/plannerData';
+import { getDefaultSettings } from '../lib/plannerData';
+import { updateProfile } from '../services/authService';
+import { getSettings, saveSettings } from '../services/settingsService';
 
 function Settings() {
     const { user, refreshUser, logout } = useAuth();
@@ -15,9 +16,29 @@ function Settings() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        const stored = getPlannerData(user?.$id).settings;
-        setSettings(stored);
-        setName(user?.name || '');
+        let active = true;
+
+        const loadSettings = async () => {
+            if (!user) return;
+            try {
+                const stored = await getSettings();
+                if (active) {
+                    setSettings(stored || getDefaultSettings());
+                    setName(user?.name || '');
+                }
+            } catch {
+                if (active) {
+                    setSettings(getDefaultSettings());
+                    setName(user?.name || '');
+                }
+            }
+        };
+
+        loadSettings();
+
+        return () => {
+            active = false;
+        };
     }, [user?.$id, user?.name]);
 
     const handleUpdate = async (event) => {
@@ -27,9 +48,9 @@ function Settings() {
         setError('');
 
         try {
-            await account.updateName(name);
+            await updateProfile(name);
             await refreshUser();
-            savePlannerData(user?.$id, 'settings', settings);
+            await saveSettings(settings);
             setMessage('Profile updated successfully.');
             addToast('Profile updated.', 'success');
         } catch (err) {
@@ -77,7 +98,7 @@ function Settings() {
                             <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Full name" />
                             <Input value={settings.collegeName} onChange={(event) => setSettings((current) => ({ ...current, collegeName: event.target.value }))} placeholder="College name" />
                             <Input value={settings.studyGoal} onChange={(event) => setSettings((current) => ({ ...current, studyGoal: event.target.value }))} placeholder="Study goal" />
-                            <Button text={loading ? 'Saving...' : 'Update profile'} className="w-full" />
+                            <Button type="submit" text={loading ? 'Saving...' : 'Update profile'} className="w-full" />
                         </div>
                         {message ? <p className="mt-3 text-sm text-[#38c895]">{message}</p> : null}
                         {error ? <p className="mt-3 text-sm text-[#ff6b7a]">{error}</p> : null}

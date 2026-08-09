@@ -1,13 +1,57 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getPlannerData } from '../lib/plannerData';
+import { getSubjects, updateSubject } from '../services/subjectService';
 
 function Attendance() {
     const { user } = useAuth();
-    const data = useMemo(() => getPlannerData(user?.$id), [user?.$id]);
-    const subjects = data.subjects;
-    const totalClasses = subjects.reduce((sum, subject) => sum + Math.max(1, Number(subject.attendance) || 0), 0);
-    const attendancePct = subjects.length ? Math.round(subjects.reduce((sum, subject) => sum + Number(subject.attendance || 0), 0) / subjects.length) : 92;
+    const [subjects, setSubjects] = useState([]);
+    const [editingAttendance, setEditingAttendance] = useState(null);
+    const [attendanceValue, setAttendanceValue] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        let active = true;
+
+        const loadSubjects = async () => {
+            if (!user) return;
+            setLoading(true);
+            try {
+                const nextSubjects = await getSubjects();
+                if (active) setSubjects(nextSubjects);
+            } catch {
+                if (active) setSubjects([]);
+            } finally {
+                if (active) setLoading(false);
+            }
+        };
+
+        loadSubjects();
+
+        return () => {
+            active = false;
+        };
+    }, [user?.$id]);
+
+    const totalPresent = subjects.reduce((sum, subject) => sum + Math.max(0, Number(subject.attendance) || 0), 0);
+    const totalSubjects = subjects.length;
+    const attendancePct = totalSubjects ? Math.round(totalPresent / totalSubjects) : 0;
+
+    const handleStartEdit = (subject) => {
+        setEditingAttendance(subject.$id || subject.id);
+        setAttendanceValue(String(subject.attendance || 0));
+    };
+
+    const handleSaveAttendance = async (subjectId) => {
+        const value = Math.max(0, Math.min(100, Number(attendanceValue) || 0));
+        try {
+            const updated = await updateSubject(subjectId, { attendance: value });
+            setSubjects((current) => current.map((subject) => (subject.$id === subjectId || subject.id === subjectId ? { ...subject, ...updated } : subject)));
+            setEditingAttendance(null);
+            setAttendanceValue('');
+        } catch (error) {
+            console.error('Attendance update failed:', error);
+        }
+    };
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -32,8 +76,8 @@ function Attendance() {
             </div>
 
             <div className="mt-6 rounded-[20px] border border-[#2d3850] bg-[#171f33] p-5">
-                {subjects.length ? subjects.map((subject) => (
-                    <div key={subject.id} className="mb-3 rounded-[16px] border border-[#2d3850] bg-[#0f1424] p-4 last:mb-0">
+                {loading ? <p className="rounded-[16px] border border-dashed border-[#2d3850] px-4 py-8 text-center text-sm text-[#9ba8c3]">Loading attendance data…</p> : subjects.length ? subjects.map((subject) => (
+                    <div key={subject.$id || subject.id} className="mb-3 rounded-[16px] border border-[#2d3850] bg-[#0f1424] p-4 last:mb-0">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-medium text-[#f4f7ff]">{subject.name}</p>

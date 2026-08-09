@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { account } from '../lib/appwrite';
+import { getCurrentUser, login as loginService, logout as logoutService, signup as signupService } from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
 
     const refreshUser = async () => {
         try {
-            const currentUser = await account.get();
+            const currentUser = await getCurrentUser();
             setUser(currentUser);
             return currentUser;
         } catch {
@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
 
         const initAuth = async () => {
             try {
-                const currentUser = await account.get();
+                const currentUser = await getCurrentUser();
                 if (mounted) {
                     setUser(currentUser);
                 }
@@ -46,18 +46,18 @@ export function AuthProvider({ children }) {
     }, []);
 
     const login = async (email, password) => {
-        await account.createEmailPasswordSession(email, password);
+        await loginService({ email, password });
         return refreshUser();
     };
 
     const signup = async ({ name, email, password }) => {
-        await account.create('unique()', email, password, name);
-        return login(email, password);
+        await signupService({ name, email, password });
+        return refreshUser();
     };
 
     const logout = async () => {
         try {
-            await account.deleteSession('current');
+            await logoutService();
         } finally {
             setUser(null);
         }
