@@ -1,14 +1,19 @@
 import React from 'react';
-import Navbar from './pages/nav';
-import Footer from './pages/footer';
+import { Navbar, Footer, Sidebar } from './components';
+import { Outlet } from 'react-router-dom';
 
 function Layout() {
     return (
-        <>
+        <div className="min-h-screen bg-[#0b1020] text-[#f4f7ff]">
             <Navbar />
-            <Outlet />
-            <Footer />
-        </>
+            <Sidebar />
+            <div className="min-h-screen md:pl-16">
+                <main className="min-h-screen">
+                    <Outlet />
+                </main>
+                <Footer />
+            </div>
+        </div>
     )
 }
 
