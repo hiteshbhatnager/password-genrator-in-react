@@ -8,6 +8,8 @@ function App() {
   const [char, setChar] = useState(false)
   const [range, setRange] = useState(8)
 
+  let pass;
+
   const genrator = () => {
     let variable = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     let numbers = '12345678901234567890'
@@ -15,12 +17,11 @@ function App() {
 
     for (let i = 0; i <= variable.length; i++) {
       let random = Math.floor(Math.random() * variable.length + 1)
-      console.log(random)
-      if (char) {
-        variable = + char
-      } else if (num) {
-        variable = + num
-      }
+      if (char) variable += characs
+      else if (num) variable += numbers
+      console.log(pass)
+      pass += variable[random]
+      setValue(pass)
     }
   }
 
