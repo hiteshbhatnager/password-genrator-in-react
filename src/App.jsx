@@ -13,8 +13,15 @@ function App() {
     let numbers = '12345678901234567890'
     let characs = "~!@#$%^&*()_=-=!@#$%^&*()_-=[]\\{}+"
 
-    console.log(variable.length)
-    console.log(char, num)
+    for (let i = 0; i <= variable.length; i++) {
+      let random = Math.floor(Math.random() * variable.length + 1)
+      console.log(random)
+      if (char) {
+        variable = + char
+      } else if (num) {
+        variable = + num
+      }
+    }
   }
 
   useEffect(() => {
@@ -52,7 +59,10 @@ function App() {
                 className='bg-blue-500 p-4'
                 type='checkbox'
                 value={num}
-                onClick={(prev) => setNum(!prev)} />
+                onClick={() => {
+                  setNum((prev) => !prev)
+                }
+                } />
 
             </div>
 
@@ -62,7 +72,9 @@ function App() {
                 className='bg-blue-500 p-4'
                 type='checkbox'
                 value={char}
-                onChange={(prev) => setChar(!prev)} />
+                onChange={() => {
+                  setChar((prev) => !prev)
+                }} />
             </div>
           </div>
 
