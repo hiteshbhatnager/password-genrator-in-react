@@ -3,7 +3,7 @@ import './App.css'
 
 
 function App() {
-  const [value, setValue] = useState(0)
+  const [value, setValue] = useState("")
   const [num, setNum] = useState(false)
   const [char, setChar] = useState(false)
   const [range, setRange] = useState(8)
@@ -11,18 +11,20 @@ function App() {
   let pass;
 
   const genrator = () => {
+    pass = ""
+    setValue("")
     let variable = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     let numbers = '12345678901234567890'
     let characs = "~!@#$%^&*()_=-=!@#$%^&*()_-=[]\\{}+"
 
-    for (let i = 0; i <= variable.length; i++) {
+    for (let i = 0; i <= range; i++) {
       let random = Math.floor(Math.random() * variable.length + 1)
       if (char) variable += characs
       else if (num) variable += numbers
-      console.log(pass)
       pass += variable[random]
       setValue(pass)
     }
+    console.log(pass)
   }
 
   useEffect(() => {
@@ -57,10 +59,10 @@ function App() {
             <div>
               <p>numbers</p>
               <input
-                className='bg-blue-500 p-4'
+                className='bg-blue-500 p-4 '
                 type='checkbox'
                 value={num}
-                onClick={() => {
+                onChange={() => {
                   setNum((prev) => !prev)
                 }
                 } />
